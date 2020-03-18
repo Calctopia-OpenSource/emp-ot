@@ -1,39 +1,51 @@
-cmake_minimum_required (VERSION 2.8.11)
+cmake_minimum_required (VERSION 3.0)
 project (emp-ot)
 set(NAME "emp-ot")
+set (CMAKE_CXX_STANDARD 11) 
 
-if(POLICY CMP0042)
-  cmake_policy(SET CMP0042 NEW) # use rpath on macOS
-endif()
-
-if(NOT CMAKE_BUILD_TYPE)
-set(CMAKE_BUILD_TYPE Release)
-endif(NOT CMAKE_BUILD_TYPE)
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-
-include_directories(${CMAKE_SOURCE_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} cmake/)
-set(CMAKE_C_FLAGS "-pthread -Wall -march=native -O3 -maes -mrdseed -mavx2")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++0x")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
-OPTION(USE_RANDOM_DEVICE "Option description" OFF)
-IF(USE_RANDOM_DEVICE)
-     ADD_DEFINITIONS(-DEMP_USE_RANDOM_DEVICE)
-ENDIF(USE_RANDOM_DEVICE)
+find_path(CMAKE_FOLDER NAMES cmake/emp-tool-config.cmake)
+include(${CMAKE_FOLDER}/cmake/common.cmake)
+include(${CMAKE_FOLDER}/cmake/source_of_randomness.cmake)
+include(${CMAKE_FOLDER}/cmake/threading.cmake)
 
 find_package(emp-tool REQUIRED)
-include_directories(${EMP-TOOL_INCLUDE_DIRS})
+# Requirements for lattice
+if (LATTICEOT)
+  message(STATUS "Building with support for lattice OT")
+  find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+  find_package(Boost 1.58 REQUIRED COMPONENTS random)
+  include_directories(${EMP-TOOL_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${Boost_INCLUDE_DIRS})
+else (LATTICEOT)
+  include_directories(${EMP-TOOL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+endif (LATTICEOT)
 
-macro (add_test _name)
-	add_executable(${_name} "test/${_name}.cpp" ${sources})
-	target_link_libraries(${_name} ${EMP-TOOL_LIBRARIES}) 
-endmacro()
-
+# Installation
 install(FILES cmake/emp-ot-config.cmake DESTINATION cmake/)
 install(DIRECTORY emp-ot DESTINATION include/)
+
+# Test cases
+macro (add_test _name)
+  add_test_with_lib(${_name} ${EMP-TOOL_LIBRARIES})
+
+  if (LATTICEOT AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(${_name} PUBLIC -fext-numeric-literals)
+  endif (LATTICEOT AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+
+endmacro()
 
 add_test(shot)
 add_test(mot)
 add_test(deltaot)
+add_test(ideal)
+
+if (LATTICEOT)
+  set(INCLUDE_LATTICE_OT ON)
+  add_test(lattice)
+  target_link_libraries(lattice Eigen3::Eigen)
+  SET_TARGET_PROPERTIES(lattice PROPERTIES COMPILE_DEFINITIONS "EMP_USE_RANDOM_DEVICE")
+else(LATTICEOT)
+  set(INCLUDE_LATTICE_OT OFF)
+
+endif(LATTICEOT)
+
+configure_file(${CMAKE_SOURCE_DIR}/emp-ot/latticeInclude.h.in ${CMAKE_SOURCE_DIR}/emp-ot/latticeInclude.h @ONLY)

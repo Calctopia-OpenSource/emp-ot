@@ -8,11 +8,13 @@ Installation
 
 1. Install prerequisites using instructions [here](https://github.com/emp-toolkit/emp-readme#detailed-installation).
 2. Install [emp-tool](https://github.com/emp-toolkit/emp-tool).
-2. `git clone https://github.com/emp-toolkit/emp-ot.git`
-3. `cd emp-ot && cmake . && sudo make install`  
+3. `git clone https://github.com/emp-toolkit/emp-ot.git`
+4. Optionally, if lattice-based OT is desired, install dependencies with `emp-ot/install_packages_lattice.sh`
+5. `cd emp-ot && cmake . && sudo make install`  
     1. Alternatively, you can also `cd emp-ot && mkdir -p build && cd build && cmake .. && sudo make install` if out-of-source build is preferred.
     2. By default it will build for Release. `-DCMAKE_BUILD_TYPE=[Release|Debug]` option is also available.
-    3. No sudo? change [CMAKE_INSTALL_PREFIX](https://cmake.org/cmake/help/v2.8.8/cmake.html#variable%3aCMAKE_INSTALL_PREFIX)
+	3. To build with lattice OT, add the flag `-DLATTICEOT=true`
+    4. No sudo? change [CMAKE_INSTALL_PREFIX](https://cmake.org/cmake/help/v2.8.8/cmake.html#variable%3aCMAKE_INSTALL_PREFIX)
 
 Test
 =====
@@ -76,9 +78,12 @@ bool c[length];
 NetIO io(party==ALICE ? nullptr:"127.0.0.1", port); // Create a network with Bob connecting to 127.0.0.1
 NPOT<NetIO> np(&io); // create a Naor Pinkas OT using the network above
 if (party == ALICE)
-    np.send(b0, b1, length); // ALICE is sender, with b0[i] and b1[i] as messages to send
+// ALICE is sender, with b0[i] and b1[i] as messages to send
+    np.send(b0, b1, length); 
 else
-    np.recv(b0, c, length);  // Bob is receiver, with c[i] as the choice bit and obtains b0[i] if c[i]==0 and b1[i] if c[i]==1
+// Bob is receiver, with c[i] as the choice bit 
+// and obtains b0[i] if c[i]==0 and b1[i] if c[i]==1
+    np.recv(b0, c, length);  
 ```
 Note that `NPOT` can be replaced to `COOT`, `SHOTExtension` or `MOTExtension` (default rho=40) without changing any other part of the code. In fact, `*OTExtension` calls baseOT internally so you should (almost) never need to call `NPOT` or `COOT` yourself.
 
@@ -138,4 +143,6 @@ Question
 Please send email to wangxiao@cs.umd.edu
 
 ## Acknowledgement
+Lattice-based OT is contributed by David Van Cleve, Matthew Soulanille, and William Wang.
+
 This work was supported in part by the National Science Foundation under Awards #1111599 and #1563722.
